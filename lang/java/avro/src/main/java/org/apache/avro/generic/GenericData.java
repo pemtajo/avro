@@ -31,10 +31,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.avro.AvroMissingFieldException;
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.AvroTypeException;
 import org.apache.avro.Conversion;
 import org.apache.avro.Conversions;
+import org.apache.avro.JsonProperties;
 import org.apache.avro.LogicalType;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
@@ -743,7 +745,7 @@ public class GenericData {
   /** Return the schema full name for a datum.  Called by {@link
    * #resolveUnion(Schema,Object)}. */
   protected String getSchemaName(Object datum) {
-    if (datum == null)
+    if (datum == null || datum == JsonProperties.NULL_VALUE)
       return Type.NULL.getName();
     if (isRecord(datum))
       return getRecordSchema(datum).getFullName();
@@ -1012,8 +1014,8 @@ public class GenericData {
   public Object getDefaultValue(Field field) {
     JsonNode json = field.defaultValue();
     if (json == null)
-      throw new AvroRuntimeException("Field " + field
-                                     + " not set and has no default value");
+      throw new AvroMissingFieldException("Field " + field
+                                          + " not set and has no default value", field);
     if (json.isNull()
         && (field.schema().getType() == Type.NULL
             || (field.schema().getType() == Type.UNION

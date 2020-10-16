@@ -10,7 +10,6 @@ import org.apache.avro.message.BinaryMessageEncoder;
 import org.apache.avro.message.BinaryMessageDecoder;
 import org.apache.avro.message.SchemaStore;
 
-@SuppressWarnings("all")
 /** 選手 is Japanese for player. */
 @org.apache.avro.specific.AvroGenerated
 public class Player extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
@@ -28,6 +27,7 @@ public class Player extends org.apache.avro.specific.SpecificRecordBase implemen
 
   /**
    * Return the BinaryMessageDecoder instance used by this class.
+   * @return the message decoder used by this class
    */
   public static BinaryMessageDecoder<Player> getDecoder() {
     return DECODER;
@@ -36,17 +36,27 @@ public class Player extends org.apache.avro.specific.SpecificRecordBase implemen
   /**
    * Create a new BinaryMessageDecoder instance for this class that uses the specified {@link SchemaStore}.
    * @param resolver a {@link SchemaStore} used to find schemas by fingerprint
+   * @return a BinaryMessageDecoder instance for this class backed by the given SchemaStore
    */
   public static BinaryMessageDecoder<Player> createDecoder(SchemaStore resolver) {
     return new BinaryMessageDecoder<Player>(MODEL$, SCHEMA$, resolver);
   }
 
-  /** Serializes this Player to a ByteBuffer. */
+  /**
+   * Serializes this Player to a ByteBuffer.
+   * @return a buffer holding the serialized data for this instance
+   * @throws java.io.IOException if this instance could not be serialized
+   */
   public java.nio.ByteBuffer toByteBuffer() throws java.io.IOException {
     return ENCODER.encode(this);
   }
 
-  /** Deserializes a Player from a ByteBuffer. */
+  /**
+   * Deserializes a Player from a ByteBuffer.
+   * @param b a byte buffer holding serialized data for an instance of this class
+   * @return a Player instance decoded from the given buffer
+   * @throws java.io.IOException if the given bytes could not be deserialized into an instance of this class
+   */
   public static Player fromByteBuffer(
       java.nio.ByteBuffer b) throws java.io.IOException {
     return DECODER.decode(b);
@@ -182,7 +192,11 @@ public class Player extends org.apache.avro.specific.SpecificRecordBase implemen
    * @return A new Player RecordBuilder
    */
   public static avro.examples.baseball.Player.Builder newBuilder(avro.examples.baseball.Player.Builder other) {
-    return new avro.examples.baseball.Player.Builder(other);
+    if (other == null) {
+      return new avro.examples.baseball.Player.Builder();
+    } else {
+      return new avro.examples.baseball.Player.Builder(other);
+    }
   }
 
   /**
@@ -191,7 +205,11 @@ public class Player extends org.apache.avro.specific.SpecificRecordBase implemen
    * @return A new Player RecordBuilder
    */
   public static avro.examples.baseball.Player.Builder newBuilder(avro.examples.baseball.Player other) {
-    return new avro.examples.baseball.Player.Builder(other);
+    if (other == null) {
+      return new avro.examples.baseball.Player.Builder();
+    } else {
+      return new avro.examples.baseball.Player.Builder(other);
+    }
   }
 
   /**
@@ -219,19 +237,19 @@ public class Player extends org.apache.avro.specific.SpecificRecordBase implemen
       super(other);
       if (isValidValue(fields()[0], other.number)) {
         this.number = data().deepCopy(fields()[0].schema(), other.number);
-        fieldSetFlags()[0] = true;
+        fieldSetFlags()[0] = other.fieldSetFlags()[0];
       }
       if (isValidValue(fields()[1], other.first_name)) {
         this.first_name = data().deepCopy(fields()[1].schema(), other.first_name);
-        fieldSetFlags()[1] = true;
+        fieldSetFlags()[1] = other.fieldSetFlags()[1];
       }
       if (isValidValue(fields()[2], other.last_name)) {
         this.last_name = data().deepCopy(fields()[2].schema(), other.last_name);
-        fieldSetFlags()[2] = true;
+        fieldSetFlags()[2] = other.fieldSetFlags()[2];
       }
       if (isValidValue(fields()[3], other.position)) {
         this.position = data().deepCopy(fields()[3].schema(), other.position);
-        fieldSetFlags()[3] = true;
+        fieldSetFlags()[3] = other.fieldSetFlags()[3];
       }
     }
 
@@ -240,7 +258,7 @@ public class Player extends org.apache.avro.specific.SpecificRecordBase implemen
      * @param other The existing instance to copy.
      */
     private Builder(avro.examples.baseball.Player other) {
-            super(SCHEMA$);
+      super(SCHEMA$);
       if (isValidValue(fields()[0], other.number)) {
         this.number = data().deepCopy(fields()[0].schema(), other.number);
         fieldSetFlags()[0] = true;
@@ -428,6 +446,8 @@ public class Player extends org.apache.avro.specific.SpecificRecordBase implemen
         record.last_name = fieldSetFlags()[2] ? this.last_name : (java.lang.CharSequence) defaultValue(fields()[2]);
         record.position = fieldSetFlags()[3] ? this.position : (java.util.List<avro.examples.baseball.Position>) defaultValue(fields()[3]);
         return record;
+      } catch (org.apache.avro.AvroMissingFieldException e) {
+        throw e;
       } catch (java.lang.Exception e) {
         throw new org.apache.avro.AvroRuntimeException(e);
       }

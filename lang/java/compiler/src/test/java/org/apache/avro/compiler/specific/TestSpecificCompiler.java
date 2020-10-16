@@ -33,6 +33,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.avro.AvroTestUtil;
@@ -46,13 +47,20 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javax.tools.Diagnostic;
+import javax.tools.DiagnosticListener;
 import javax.tools.JavaCompiler;
+import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 
 @RunWith(JUnit4.class)
 public class TestSpecificCompiler {
+  private static final Logger LOG = LoggerFactory.getLogger(TestSpecificCompiler.class);
+
   private final String schemaSrcPath = "src/test/resources/simple_record.avsc";
   private final String velocityTemplateDir =
       "src/main/velocity/org/apache/avro/compiler/specific/templates/java/classic/";
@@ -93,11 +101,33 @@ public class TestSpecificCompiler {
       javaFiles.add(o.writeToDestination(null, dstDir));
     }
 
+    final List<Diagnostic<?>> warnings = new ArrayList<Diagnostic<?>>();
+    DiagnosticListener<JavaFileObject> diagnosticListener = new DiagnosticListener<JavaFileObject>() {
+      @Override
+      public void report(Diagnostic<? extends JavaFileObject> diagnostic) {
+        switch (diagnostic.getKind()) {
+        case ERROR:
+          // Do not add these to warnings becuase they will fail the compile, anyway.
+          LOG.error("{}", diagnostic);
+          break;
+        case WARNING:
+        case MANDATORY_WARNING:
+          LOG.warn("{}", diagnostic);
+          warnings.add(diagnostic);
+          break;
+        case NOTE:
+        case OTHER:
+          LOG.debug("{}", diagnostic);
+          break;
+        }
+      }
+    };
     JavaCompiler.CompilationTask cTask = compiler.getTask(null, fileManager,
-            null, null, null, fileManager.getJavaFileObjects(
-                    javaFiles.toArray(new File[javaFiles.size()])));
+            diagnosticListener, Collections.singletonList("-Xlint:all"), null,
+            fileManager.getJavaFileObjects(javaFiles.toArray(new File[javaFiles.size()])));
     boolean compilesWithoutError = cTask.call();
     assertTrue(compilesWithoutError);
+    assertEquals("Warnings produced when compiling generated code with -Xlint:all", 0, warnings.size());
   }
 
   private static Schema createSampleRecordSchema(int numStringFields, int numDoubleFields) {
@@ -387,6 +417,7 @@ public class TestSpecificCompiler {
     Schema floatSchema = Schema.create(Schema.Type.FLOAT);
     Schema doubleSchema = Schema.create(Schema.Type.DOUBLE);
     Schema boolSchema = Schema.create(Schema.Type.BOOLEAN);
+
     Assert.assertEquals("Should use int for Type.INT",
         "int", compiler.javaUnbox(intSchema));
     Assert.assertEquals("Should use long for Type.LONG",
@@ -402,7 +433,11 @@ public class TestSpecificCompiler {
         .addToSchema(Schema.create(Schema.Type.INT));
     Schema timeSchema = LogicalTypes.timeMillis()
         .addToSchema(Schema.create(Schema.Type.INT));
+    Schema timeMicroSchema = LogicalTypes.timeMicros()
+        .addToSchema(Schema.create(Schema.Type.LONG));
     Schema timestampSchema = LogicalTypes.timestampMillis()
+        .addToSchema(Schema.create(Schema.Type.LONG));
+    Schema timestampMicrosSchema = LogicalTypes.timestampMicros()
         .addToSchema(Schema.create(Schema.Type.LONG));
     // Date/time types should always use upper level java classes, even though
     // their underlying representations are primitive types
@@ -412,7 +447,10 @@ public class TestSpecificCompiler {
         "org.joda.time.LocalTime", compiler.javaUnbox(timeSchema));
     Assert.assertEquals("Should use Joda DateTime for timestamp-millis type",
         "org.joda.time.DateTime", compiler.javaUnbox(timestampSchema));
-
+    Assert.assertEquals("Should use Joda DateTime for timestamp-millis type",
+        "org.joda.time.LocalTime", compiler.javaUnbox(timeMicroSchema));
+    Assert.assertEquals("Should use Joda DateTime for timestamp-millis type",
+        "org.joda.time.DateTime", compiler.javaUnbox(timestampMicrosSchema));
   }
 
   @Test
@@ -470,9 +508,17 @@ public class TestSpecificCompiler {
   @Test
   public void testLogicalTypesWithMultipleFields() throws Exception {
     Schema logicalTypesWithMultipleFields = new Schema.Parser().parse(
-        new File("src/test/resources/simple_record.avsc"));
+        new File("src/test/resources/logical_types_with_multiple_fields.avsc"));
     assertCompilesWithJavaCompiler(
         new SpecificCompiler(logicalTypesWithMultipleFields).compile());
+  }
+
+  @Test
+  public void testUnionAndFixedFields() throws Exception {
+    Schema unionTypesWithMultipleFields = new Schema.Parser().parse(
+        new File("src/test/resources/union_and_fixed_fields.avsc"));
+    assertCompilesWithJavaCompiler(
+        new SpecificCompiler(unionTypesWithMultipleFields).compile());
   }
 
   @Test
@@ -484,7 +530,11 @@ public class TestSpecificCompiler {
         .addToSchema(Schema.create(Schema.Type.INT));
     Schema timeSchema = LogicalTypes.timeMillis()
         .addToSchema(Schema.create(Schema.Type.INT));
+    Schema timeMicroSchema = LogicalTypes.timeMicros()
+        .addToSchema(Schema.create(Schema.Type.LONG));
     Schema timestampSchema = LogicalTypes.timestampMillis()
+        .addToSchema(Schema.create(Schema.Type.LONG));
+    Schema timestampMicrosSchema = LogicalTypes.timestampMicros()
         .addToSchema(Schema.create(Schema.Type.LONG));
     Schema decimalSchema = LogicalTypes.decimal(9,2)
         .addToSchema(Schema.create(Schema.Type.BYTES));
@@ -495,12 +545,17 @@ public class TestSpecificCompiler {
         "DATE_CONVERSION", compiler.conversionInstance(dateSchema));
     Assert.assertEquals("Should use TIME_CONVERSION for time type",
         "TIME_CONVERSION", compiler.conversionInstance(timeSchema));
+    Assert.assertEquals("Should use TIME_MICROS_CONVERSION for time type",
+        "TIME_MICROS_CONVERSION", compiler.conversionInstance(timeMicroSchema));
     Assert.assertEquals("Should use TIMESTAMP_CONVERSION for date type",
         "TIMESTAMP_CONVERSION", compiler.conversionInstance(timestampSchema));
+    Assert.assertEquals("Should use TIMESTAMP_MICROS_CONVERSION for date type",
+        "TIMESTAMP_MICROS_CONVERSION", compiler.conversionInstance(timestampMicrosSchema));
     Assert.assertEquals("Should use null for decimal if the flag is off",
         "null", compiler.conversionInstance(decimalSchema));
     Assert.assertEquals("Should use null for decimal if the flag is off",
         "null", compiler.conversionInstance(uuidSchema));
+
   }
 
 
@@ -513,7 +568,11 @@ public class TestSpecificCompiler {
         .addToSchema(Schema.create(Schema.Type.INT));
     Schema timeSchema = LogicalTypes.timeMillis()
         .addToSchema(Schema.create(Schema.Type.INT));
+    Schema timeMicroSchema = LogicalTypes.timeMicros()
+        .addToSchema(Schema.create(Schema.Type.LONG));
     Schema timestampSchema = LogicalTypes.timestampMillis()
+        .addToSchema(Schema.create(Schema.Type.LONG));
+    Schema timestampMicrosSchema = LogicalTypes.timestampMicros()
         .addToSchema(Schema.create(Schema.Type.LONG));
     Schema decimalSchema = LogicalTypes.decimal(9,2)
         .addToSchema(Schema.create(Schema.Type.BYTES));
@@ -524,8 +583,12 @@ public class TestSpecificCompiler {
         "DATE_CONVERSION", compiler.conversionInstance(dateSchema));
     Assert.assertEquals("Should use TIME_CONVERSION for time type",
         "TIME_CONVERSION", compiler.conversionInstance(timeSchema));
+    Assert.assertEquals("Should use TIME_MICROS_CONVERSION for time type",
+        "TIME_MICROS_CONVERSION", compiler.conversionInstance(timeMicroSchema));
     Assert.assertEquals("Should use TIMESTAMP_CONVERSION for date type",
         "TIMESTAMP_CONVERSION", compiler.conversionInstance(timestampSchema));
+    Assert.assertEquals("Should use TIMESTAMP_MICROS_CONVERSION for date type",
+        "TIMESTAMP_MICROS_CONVERSION", compiler.conversionInstance(timestampMicrosSchema));
     Assert.assertEquals("Should use null for decimal if the flag is off",
         "DECIMAL_CONVERSION", compiler.conversionInstance(decimalSchema));
     Assert.assertEquals("Should use null for decimal if the flag is off",

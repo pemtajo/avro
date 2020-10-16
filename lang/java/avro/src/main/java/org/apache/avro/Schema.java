@@ -1222,6 +1222,9 @@ public abstract class Schema extends JsonProperties {
 
   /** @see #parse(String) */
   static Schema parse(JsonNode schema, Names names) {
+    if (schema == null) {
+      throw new SchemaParseException("Cannot parse <null> schema");
+    }
     if (schema.isTextual()) {                     // name
       Schema result = names.get(schema.getTextValue());
       if (result == null)
@@ -1294,7 +1297,7 @@ public abstract class Schema extends JsonProperties {
         JsonNode symbolsNode = schema.get("symbols");
         if (symbolsNode == null || !symbolsNode.isArray())
           throw new SchemaParseException("Enum has no symbols: "+schema);
-        LockableArrayList<String> symbols = new LockableArrayList<String>();
+        LockableArrayList<String> symbols = new LockableArrayList<String>(symbolsNode.size());
         for (JsonNode n : symbolsNode)
           symbols.add(n.getTextValue());
         result = new EnumSchema(name, doc, symbols);
