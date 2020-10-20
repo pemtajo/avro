@@ -96,7 +96,25 @@
     </mailingList>
   </mailingLists>
 
+  <distributionManagement>
+    <snapshotRepository>
+      <id>nu-maven.snapshots</id>
+      <url>s3://nu-maven/snapshots</url>
+    </snapshotRepository>
+    <repository>
+      <id>nu-maven.releases</id>
+      <url>s3://nu-maven/releases</url>
+    </repository>
+  </distributionManagement>
+
   <build>
+    <extensions>
+      <extension>
+        <groupId>com.github.platform-team</groupId>
+        <artifactId>aws-maven</artifactId>
+        <version>6.0.0</version>
+      </extension>
+    </extensions>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
